@@ -201,30 +201,33 @@ THREE.OutlinePass.prototype.render = function ( renderer, writeBuffer, readBuffe
             renderer.render( this.scene, this.camera, this.renderTargetEdgeBuffer1, true );
             renderer.setClearAlpha( 1 );
 
-            // 4. Apply Blur on Half res
-            this.quad.material = this.separableBlurMaterial1;
-            this.separableBlurMaterial1.uniforms[ "colorTexture" ].value = this.renderTargetEdgeBuffer1.texture;
-            this.separableBlurMaterial1.uniforms[ "direction" ].value = THREE.OutlinePass.BlurDirectionX;
-            this.separableBlurMaterial1.uniforms[ "kernelRadius" ].value = this.edgeThickness;
-            renderer.render( this.scene, this.camera, this.renderTargetBlurBuffer1, true );
-            this.separableBlurMaterial1.uniforms[ "colorTexture" ].value = this.renderTargetBlurBuffer1.texture;
-            this.separableBlurMaterial1.uniforms[ "direction" ].value = THREE.OutlinePass.BlurDirectionY;
-            renderer.render( this.scene, this.camera, this.renderTargetEdgeBuffer1, true );
+            let shouldBlur = this.edgeThickness > 1.0;
+            if(shouldBlur) {
+                // 4. Apply Blur on Half res
+                this.quad.material = this.separableBlurMaterial1;
+                this.separableBlurMaterial1.uniforms[ "colorTexture" ].value = this.renderTargetEdgeBuffer1.texture;
+                this.separableBlurMaterial1.uniforms[ "direction" ].value = THREE.OutlinePass.BlurDirectionX;
+                this.separableBlurMaterial1.uniforms[ "kernelRadius" ].value = this.edgeThickness;
+                renderer.render( this.scene, this.camera, this.renderTargetBlurBuffer1, true );
+                this.separableBlurMaterial1.uniforms[ "colorTexture" ].value = this.renderTargetBlurBuffer1.texture;
+                this.separableBlurMaterial1.uniforms[ "direction" ].value = THREE.OutlinePass.BlurDirectionY;
+                renderer.render( this.scene, this.camera, this.renderTargetEdgeBuffer1, true );
 
-            // Apply Blur on quarter res
-            this.quad.material = this.separableBlurMaterial2;
-            this.separableBlurMaterial2.uniforms[ "colorTexture" ].value = this.renderTargetEdgeBuffer1.texture;
-            this.separableBlurMaterial2.uniforms[ "direction" ].value = THREE.OutlinePass.BlurDirectionX;
-            renderer.render( this.scene, this.camera, this.renderTargetBlurBuffer2, true );
-            this.separableBlurMaterial2.uniforms[ "colorTexture" ].value = this.renderTargetBlurBuffer2.texture;
-            this.separableBlurMaterial2.uniforms[ "direction" ].value = THREE.OutlinePass.BlurDirectionY;
-            renderer.render( this.scene, this.camera, this.renderTargetEdgeBuffer2, true );
+                // Apply Blur on quarter res
+                this.quad.material = this.separableBlurMaterial2;
+                this.separableBlurMaterial2.uniforms[ "colorTexture" ].value = this.renderTargetEdgeBuffer1.texture;
+                this.separableBlurMaterial2.uniforms[ "direction" ].value = THREE.OutlinePass.BlurDirectionX;
+                renderer.render( this.scene, this.camera, this.renderTargetBlurBuffer2, true );
+                this.separableBlurMaterial2.uniforms[ "colorTexture" ].value = this.renderTargetBlurBuffer2.texture;
+                this.separableBlurMaterial2.uniforms[ "direction" ].value = THREE.OutlinePass.BlurDirectionY;
+                renderer.render( this.scene, this.camera, this.renderTargetEdgeBuffer2, true );
+            }
 
             // Blend it additively over the input texture
             this.quad.material = this.overlayMaterial;
             this.overlayMaterial.uniforms[ "maskTexture" ].value = this.renderTargetMaskBuffer.texture;
-            this.overlayMaterial.uniforms[ "edgeTexture1" ].value = this.renderTargetEdgeBuffer1.texture;
-            this.overlayMaterial.uniforms[ "edgeTexture2" ].value = this.renderTargetEdgeBuffer2.texture;
+            this.overlayMaterial.uniforms[ "edgeTexture1" ].value = shouldBlur ? this.renderTargetEdgeBuffer1.texture : this.renderTargetEdgeBuffer1.texture;
+            this.overlayMaterial.uniforms[ "edgeTexture2" ].value = shouldBlur ? this.renderTargetEdgeBuffer2.texture : this.renderTargetEdgeBuffer1.texture;
             this.overlayMaterial.uniforms[ "patternTexture" ].value = this.patternTexture;
             this.overlayMaterial.uniforms[ "edgeStrength" ].value = this.edgeStrength;
             this.overlayMaterial.uniforms[ "edgeGlow" ].value = this.edgeGlow;

@@ -8,6 +8,7 @@ import "three-examples/postprocessing/EffectComposer.js";
 import "three-examples/postprocessing/RenderPass.js";
 import "three-examples/postprocessing/ShaderPass.js";
 import "three-examples/postprocessing/OutlinePass.js";
+import "three-examples/loaders/GLTFLoader.js";
 import "./FixOutlinePass.js";
 
 import Stats from "stats.js";
@@ -43,39 +44,43 @@ this.pulsePeriod = 0;
 */
 outlinePass.visibleEdgeColor = new THREE.Vector4(0,0,0,1);
 outlinePass.hiddenEdgeColor = new THREE.Vector4(0,0,0,0);
+outlinePass.edgeStrength = 1000;
+outlinePass.edgeThickness = 0.3;
 composer.addPass( outlinePass );
 const pixelPass = new THREE.ShaderPass( THREE.PixelShader );
 pixelPass.uniforms.resolution.value = new THREE.Vector2( window.innerWidth, window.innerHeight );
 pixelPass.uniforms.resolution.value.multiplyScalar( window.devicePixelRatio );
 pixelPass.uniforms.pixelSize.value = 6;
-composer.addPass( pixelPass );
+//composer.addPass( pixelPass );
 const effectFXAA = new THREE.ShaderPass( THREE.FXAAShader );
 effectFXAA.uniforms[ 'resolution' ].value.set( 1 / window.innerWidth, 1 / window.innerHeight );
 effectFXAA.renderToScreen = true;
 composer.addPass( effectFXAA );
 
-scene.add( new THREE.Mesh(
-    new THREE.SphereBufferGeometry(1,10,10),
-    new THREE.MeshToonMaterial({
-        color: 0x026655,
-        specular: 0x000000,
-        reflectivity: 0,
-        shininess: 0,
-    })
-    ));
-scene.children[0].position.set(0,0,-5);
-outlinePass.selectedObjects = [scene.children[0]];
-let ms = new THREE.Mesh(
-    new THREE.BoxBufferGeometry(1,1,1),
-    new THREE.MeshBasicMaterial({ color: 0xFF0000 })
-    );
-ms.position.set(0,1,-6)
-scene.add(ms);
-
 let controls = new THREE.OrbitControls( cam, renderer.domElement );
-controls.target.set(0,0,-5);
-cam.position.set( 0, 0, 0 );
+controls.target.set(0,0.6,0);
+cam.position.set( 0, 0.6, 2 );
 controls.update();
+
+let loader = new THREE.GLTFLoader();
+loader.load("deltarune_ralsei_fin/scene.gltf", (data)=>{
+    let ralsei = data.scene.children[0];
+    ralsei.traverse((obj)=>{
+        if(!obj || !obj.isMesh) {
+            return;
+        }
+        let mat = new THREE.MeshToonMaterial({
+            map: obj.material.map,
+            specular: 0x888888,
+            shininess: 0,
+            reflectivity: 0
+        });
+        obj.material = mat;
+    })
+    outlinePass.selectedObjects = [ralsei];
+    scene.add(ralsei);
+});
+
 
 // ambient light
 let am_light = new THREE.AmbientLight( 0x222222 );
@@ -95,8 +100,8 @@ dir_light.shadow.bias = -.001
 dir_light.shadow.mapSize.width = dir_light.shadow.mapSize.height = 2048;
 scene.add( dir_light );
 
-let light = new THREE.PointLight( 0xffffdd, 1, 0, 2 );
-light.position.set(0,3,-4);
+let light = new THREE.PointLight( 0xffffff, 0.7, 0, 2 );
+light.position.set(0.2,2,1.4);
 scene.add(light);
 
 let lastTime = Date.now();
