@@ -44,18 +44,19 @@ this.pulsePeriod = 0;
 */
 outlinePass.visibleEdgeColor = new THREE.Vector4(0,0,0,1);
 outlinePass.hiddenEdgeColor = new THREE.Vector4(0,0,0,0);
-outlinePass.edgeStrength = 1000;
+outlinePass.darkVisibleEdgeColor = new THREE.Vector4(72/255,205/255,139/255,1);
+//outlinePass.edgeStrength = 1000;
 outlinePass.edgeThickness = 0.3;
 composer.addPass( outlinePass );
 const pixelPass = new THREE.ShaderPass( THREE.PixelShader );
 pixelPass.uniforms.resolution.value = new THREE.Vector2( window.innerWidth, window.innerHeight );
 pixelPass.uniforms.resolution.value.multiplyScalar( window.devicePixelRatio );
 pixelPass.uniforms.pixelSize.value = 6;
-//composer.addPass( pixelPass );
+pixelPass.renderToScreen = true;
+composer.addPass( pixelPass );
 const effectFXAA = new THREE.ShaderPass( THREE.FXAAShader );
 effectFXAA.uniforms[ 'resolution' ].value.set( 1 / window.innerWidth, 1 / window.innerHeight );
-effectFXAA.renderToScreen = true;
-composer.addPass( effectFXAA );
+//composer.addPass( effectFXAA );
 
 let controls = new THREE.OrbitControls( cam, renderer.domElement );
 controls.target.set(0,0.6,0);

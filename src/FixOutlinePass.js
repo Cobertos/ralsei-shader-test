@@ -16,6 +16,7 @@ THREE.OutlinePass = function ( resolution, scene, camera, selectedObjects ) {
     this.selectedObjects = selectedObjects !== undefined ? selectedObjects : [];
     this.visibleEdgeColor = new THREE.Vector4( 1, 1, 1, 1 );
     this.hiddenEdgeColor = new THREE.Vector4( 0.1, 0.04, 0.02, 1 );
+    this.darkVisibleEdgeColor = new THREE.Vector4( 0.1, 0.04, 0.02, 1 );
     this.edgeGlow = 0.0;
     this.usePatternTexture = false;
     this.edgeThickness = 1.0;
@@ -50,6 +51,10 @@ THREE.OutlinePass = function ( resolution, scene, camera, selectedObjects ) {
     this.renderTargetDepthBuffer = new THREE.WebGLRenderTarget( this.resolution.x, this.resolution.y, pars );
     this.renderTargetDepthBuffer.texture.name = "OutlinePass.depth";
     this.renderTargetDepthBuffer.texture.generateMipmaps = false;
+
+    this.renderTargetSelectedColorBuffer = new THREE.WebGLRenderTarget( this.resolution.x, this.resolution.y, pars );
+    this.renderTargetSelectedColorBuffer.texture.name = "OutlinePass.selectedColor";
+    this.renderTargetSelectedColorBuffer.texture.generateMipmaps = false;
 
     this.renderTargetMaskDownSampleBuffer = new THREE.WebGLRenderTarget( resx, resy, pars );
     this.renderTargetMaskDownSampleBuffer.texture.name = "OutlinePass.depthDownSample";
@@ -117,6 +122,7 @@ THREE.OutlinePass = function ( resolution, scene, camera, selectedObjects ) {
 
     this.tempPulseColor1 = new THREE.Vector4();
     this.tempPulseColor2 = new THREE.Vector4();
+    this.tempPulseColor3 = new THREE.Vector4();
     this.textureMatrix = new THREE.Matrix4();
 
     function replaceDepthToViewZ( string, camera ) {
@@ -159,15 +165,20 @@ THREE.OutlinePass.prototype.render = function ( renderer, writeBuffer, readBuffe
 
             // Make selected objects visible
             this.changeVisibilityOfSelectedObjects( true );
+            this.changeVisibilityOfNonSelectedObjects( false );
+
+            // 1.5. Draw the selected objects to get color
+            this.renderScene.overrideMaterial = null;
+            renderer.render( this.renderScene, this.renderCamera, this.renderTargetSelectedColorBuffer, true );
 
             // Update Texture Matrix for Depth compare
             this.updateTextureMatrix();
 
             // Make non selected objects invisible, and draw only the selected objects, by comparing the depth buffer of non selected objects
-            this.changeVisibilityOfNonSelectedObjects( false );
             this.renderScene.overrideMaterial = this.prepareMaskMaterial;
             this.prepareMaskMaterial.uniforms[ "cameraNearFar" ].value = new THREE.Vector2( this.renderCamera.near, this.renderCamera.far );
             this.prepareMaskMaterial.uniforms[ "depthTexture" ].value = this.renderTargetDepthBuffer.texture;
+            this.prepareMaskMaterial.uniforms[ "colorTexture" ].value = this.renderTargetSelectedColorBuffer.texture;
             this.prepareMaskMaterial.uniforms[ "textureMatrix" ].value = this.textureMatrix;
             renderer.render( this.renderScene, this.renderCamera, this.renderTargetMaskBuffer, true );
             this.renderScene.overrideMaterial = null;
@@ -182,6 +193,7 @@ THREE.OutlinePass.prototype.render = function ( renderer, writeBuffer, readBuffe
 
             this.tempPulseColor1.copy(this.visibleEdgeColor);
             this.tempPulseColor2.copy(this.hiddenEdgeColor);
+            this.tempPulseColor3.copy(this.darkVisibleEdgeColor);
 
             if ( this.pulsePeriod > 0 ) {
 
@@ -196,10 +208,10 @@ THREE.OutlinePass.prototype.render = function ( renderer, writeBuffer, readBuffe
             this.edgeDetectionMaterial.uniforms[ "maskTexture" ].value = this.renderTargetMaskDownSampleBuffer.texture;
             this.edgeDetectionMaterial.uniforms[ "texSize" ].value = new THREE.Vector2( this.renderTargetMaskDownSampleBuffer.width, this.renderTargetMaskDownSampleBuffer.height );
             this.edgeDetectionMaterial.uniforms[ "visibleEdgeColor" ].value = this.tempPulseColor1;
+            this.edgeDetectionMaterial.uniforms[ "darkVisibleEdgeColor" ].value = this.tempPulseColor3;
             this.edgeDetectionMaterial.uniforms[ "hiddenEdgeColor" ].value = this.tempPulseColor2;
             renderer.setClearAlpha( 0 );
             renderer.render( this.scene, this.camera, this.renderTargetEdgeBuffer1, true );
-            renderer.setClearAlpha( 1 );
 
             let shouldBlur = this.edgeThickness > 1.0;
             if(shouldBlur) {
@@ -252,6 +264,54 @@ THREE.OutlinePass.prototype.render = function ( renderer, writeBuffer, readBuffe
         }
 
 };
+THREE.OutlinePass.prototype.getPrepareMaskMaterial = function () {
+
+        return new THREE.ShaderMaterial( {
+
+            uniforms: {
+                "depthTexture": { value: null },
+                "colorTexture": { value: null },
+                "cameraNearFar": { value: new THREE.Vector2( 0.5, 0.5 ) },
+                "textureMatrix": { value: new THREE.Matrix4() }
+            },
+
+            vertexShader: [
+                'varying vec4 projTexCoord;',
+                'varying vec4 vPosition;',
+                'uniform mat4 textureMatrix;',
+
+                'void main() {',
+                '   vPosition = modelViewMatrix * vec4( position, 1.0 );',
+                '   vec4 worldPosition = modelMatrix * vec4( position, 1.0 );',
+                '   projTexCoord = textureMatrix * worldPosition;',
+                '   gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );',
+
+                '}'
+            ].join( '\n' ),
+
+            fragmentShader: [
+                '#include <packing>',
+                'varying vec4 vPosition;',
+                'varying vec4 projTexCoord;',
+                'uniform sampler2D depthTexture;',
+                'uniform sampler2D colorTexture;',
+                'uniform vec2 cameraNearFar;',
+
+                'void main() {',
+
+                '   float depth = unpackRGBAToDepth(texture2DProj( depthTexture, projTexCoord ));',
+                '   float viewZ = - DEPTH_TO_VIEW_Z( depth, cameraNearFar.x, cameraNearFar.y );',
+                '   float depthTest = -vPosition.z-viewZ;',
+                '   vec4 color = texture2DProj(colorTexture, projTexCoord);',
+                '   float colorAvg = clamp(0.0,1.0,color.r + color.g + color.b);',
+                '   gl_FragColor = vec4(0.0, depthTest, colorAvg, 1.0);',
+
+                '}'
+            ].join( '\n' )
+
+        } );
+
+};
 
 THREE.OutlinePass.prototype.getEdgeDetectionMaterial = function () {
     return new THREE.ShaderMaterial( {
@@ -259,6 +319,7 @@ THREE.OutlinePass.prototype.getEdgeDetectionMaterial = function () {
             "maskTexture": { value: null },
             "texSize": { value: new THREE.Vector2( 0.5, 0.5 ) },
             "visibleEdgeColor": { value: new THREE.Vector4( 1.0, 1.0, 1.0, 1.0 ) },
+            "darkVisibleEdgeColor": { value: new THREE.Vector4( 1.0, 1.0, 1.0, 1.0 ) },
             "hiddenEdgeColor": { value: new THREE.Vector4( 1.0, 1.0, 1.0, 1.0 ) },
         },
 
@@ -274,6 +335,7 @@ THREE.OutlinePass.prototype.getEdgeDetectionMaterial = function () {
             uniform sampler2D maskTexture;\
             uniform vec2 texSize;\
             uniform vec4 visibleEdgeColor;\
+            uniform vec4 darkVisibleEdgeColor;\
             uniform vec4 hiddenEdgeColor;\
             \
             void main() {\n\
@@ -289,8 +351,17 @@ THREE.OutlinePass.prototype.getEdgeDetectionMaterial = function () {
                 float a1 = min(c1.g, c2.g);\
                 float a2 = min(c3.g, c4.g);\
                 float visibilityFactor = min(a1, a2);\
-                vec4 edgeColor = 1.0 - visibilityFactor > 0.001 ? visibleEdgeColor : hiddenEdgeColor;\
-                gl_FragColor = edgeColor * vec4(d);\
+                float c1Intensity = c1.b*abs(1.0-c1.r);\
+                float c2Intensity = c2.b*abs(1.0-c2.r);\
+                float c3Intensity = c3.b*abs(1.0-c3.r);\
+                float c4Intensity = c4.b*abs(1.0-c4.r);\
+                float maxWrittenFrag = max(max(max(c1Intensity, c2Intensity), c3Intensity), c4Intensity);\
+                bool oneMissing = !bool(c1.r) || !bool(c3.r) || !bool(c2.r) || !bool(c4.r);\
+                bool written = oneMissing && bool(maxWrittenFrag < 0.5);\
+                vec4 visibleEdgeColorPick = oneMissing && bool(maxWrittenFrag < 0.5) ? darkVisibleEdgeColor : \
+                    (oneMissing && bool(maxWrittenFrag > 0.5) ? visibleEdgeColor : vec4(0.0,0.0,0.0,0.0));\
+                vec4 edgeColor = 1.0 - visibilityFactor > 0.001 ? visibleEdgeColorPick : hiddenEdgeColor;\
+                gl_FragColor = visibleEdgeColorPick*d;\
             }"
     } );
 };
@@ -383,9 +454,7 @@ THREE.OutlinePass.prototype.getOverlayMaterial = function () {
                 vec4 patternColor = texture2D(patternTexture, 6.0 * vUv);\
                 float visibilityFactor = 1.0 - maskColor.g > 0.0 ? 1.0 : 0.5;\
                 vec4 edgeValue = edgeValue1 + edgeValue2 * edgeGlow;\
-                vec4 finalColor = edgeStrength * maskColor.r * edgeValue;\
-                /*if(maskColor.r > 0.001)\
-                    finalColor.a = 1.0 - maskColor.g;*/\
+                vec4 finalColor = edgeStrength * edgeValue;\
                 if(usePatternTexture)\
                     finalColor += + visibilityFactor * (1.0 - maskColor.r) * (1.0 - patternColor.r);\
                 gl_FragColor = finalColor;\
