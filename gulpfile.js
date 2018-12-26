@@ -8,7 +8,7 @@ const browserSync = require('browser-sync').create();
 const path = require("path");
 
 const SRC_DIR = "src"; //Source directory
-const DIST_DIR = "dist"; //Distribution directory
+const DIST_DIR = "docs"; //Distribution directory
 
 gulp.task(function scss(){
     return gulp.src(SRC_DIR + '/main.scss')

@@ -60,7 +60,7 @@ effectFXAA.uniforms[ 'resolution' ].value.set( 1 / window.innerWidth, 1 / window
 
 let controls = new THREE.OrbitControls( cam, renderer.domElement );
 controls.target.set(0,0.6,0);
-cam.position.set( 0, 0.6, 2 );
+cam.position.set( 0, 0.6, 1 );
 controls.update();
 
 let loader = new THREE.GLTFLoader();
