@@ -1,6 +1,8 @@
 import * as THREE from "three";
+window.THREE = THREE;
 import "three-examples/controls/OrbitControls.js";
 import "three-examples/shaders/CopyShader.js";
+import "three-examples/shaders/PixelShader.js";
 import "three-examples/shaders/FXAAShader.js";
 import "three-examples/postprocessing/EffectComposer.js";
 import "three-examples/postprocessing/RenderPass.js";
@@ -42,14 +44,24 @@ this.pulsePeriod = 0;
 outlinePass.visibleEdgeColor = new THREE.Vector4(0,0,0,1);
 outlinePass.hiddenEdgeColor = new THREE.Vector4(0,0,0,0);
 composer.addPass( outlinePass );
+const pixelPass = new THREE.ShaderPass( THREE.PixelShader );
+pixelPass.uniforms.resolution.value = new THREE.Vector2( window.innerWidth, window.innerHeight );
+pixelPass.uniforms.resolution.value.multiplyScalar( window.devicePixelRatio );
+pixelPass.uniforms.pixelSize.value = 6;
+composer.addPass( pixelPass );
 const effectFXAA = new THREE.ShaderPass( THREE.FXAAShader );
 effectFXAA.uniforms[ 'resolution' ].value.set( 1 / window.innerWidth, 1 / window.innerHeight );
 effectFXAA.renderToScreen = true;
 composer.addPass( effectFXAA );
 
 scene.add( new THREE.Mesh(
-    new THREE.BoxBufferGeometry(1,1,1),
-    new THREE.MeshBasicMaterial({ color: 0x11FF33 })
+    new THREE.SphereBufferGeometry(1,10,10),
+    new THREE.MeshToonMaterial({
+        color: 0x026655,
+        specular: 0x000000,
+        reflectivity: 0,
+        shininess: 0,
+    })
     ));
 scene.children[0].position.set(0,0,-5);
 outlinePass.selectedObjects = [scene.children[0]];
@@ -66,10 +78,10 @@ cam.position.set( 0, 0, 0 );
 controls.update();
 
 // ambient light
-let am_light = new THREE.AmbientLight( 0xBBBBBB );
+let am_light = new THREE.AmbientLight( 0x222222 );
 scene.add( am_light );
 // directional light
-let dir_light = new THREE.DirectionalLight( 0xFFFFFF );
+let dir_light = new THREE.DirectionalLight( 0x222222 );
 dir_light.position.set( 20, 30, -5 );
 dir_light.target.position.set(0,0,0);
 dir_light.castShadow = true;
@@ -83,8 +95,8 @@ dir_light.shadow.bias = -.001
 dir_light.shadow.mapSize.width = dir_light.shadow.mapSize.height = 2048;
 scene.add( dir_light );
 
-let light = new THREE.PointLight( 0xffffdd, 2, 2 );
-light.position.set(0,3,-2);
+let light = new THREE.PointLight( 0xffffdd, 1, 0, 2 );
+light.position.set(0,3,-4);
 scene.add(light);
 
 let lastTime = Date.now();

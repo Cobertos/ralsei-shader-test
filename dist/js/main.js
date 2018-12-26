@@ -50984,6 +50984,68 @@ THREE.FXAAShader = {
 
 /***/ }),
 
+/***/ "../node_modules/three/examples/js/shaders/PixelShader.js":
+/*!****************************************************************!*\
+  !*** ../node_modules/three/examples/js/shaders/PixelShader.js ***!
+  \****************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+/*** IMPORTS FROM imports-loader ***/
+var THREE = __webpack_require__(/*! three */ "../node_modules/three/build/three.module.js");
+
+/**
+ * @author wongbryan / http://wongbryan.github.io
+ *
+ * Pixelation shader
+ */
+
+THREE.PixelShader = {
+
+	uniforms: {
+
+		"tDiffuse": { value: null },
+		"resolution": { value: null },
+		"pixelSize": { value: 1. },
+
+	},
+
+	vertexShader: [
+
+		"varying highp vec2 vUv;",
+
+		"void main() {",
+
+		"vUv = uv;",
+		"gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );",
+
+		"}"
+
+	].join( "\n" ),
+
+	fragmentShader: [
+
+		"uniform sampler2D tDiffuse;",
+		"uniform float pixelSize;",
+		"uniform vec2 resolution;",
+
+		"varying highp vec2 vUv;",
+
+		"void main(){",
+
+		"vec2 dxy = pixelSize / resolution;",
+		"vec2 coord = dxy * floor( vUv / dxy );",
+		"gl_FragColor = texture2D(tDiffuse, coord);",
+
+		"}"
+
+	].join( "\n" )
+};
+
+
+
+/***/ }),
+
 /***/ "./FixOutlinePass.js":
 /*!***************************!*\
   !*** ./FixOutlinePass.js ***!
@@ -51398,6 +51460,8 @@ __webpack_require__(/*! three-examples/controls/OrbitControls.js */ "../node_mod
 
 __webpack_require__(/*! three-examples/shaders/CopyShader.js */ "../node_modules/three/examples/js/shaders/CopyShader.js");
 
+__webpack_require__(/*! three-examples/shaders/PixelShader.js */ "../node_modules/three/examples/js/shaders/PixelShader.js");
+
 __webpack_require__(/*! three-examples/shaders/FXAAShader.js */ "../node_modules/three/examples/js/shaders/FXAAShader.js");
 
 __webpack_require__(/*! three-examples/postprocessing/EffectComposer.js */ "../node_modules/three/examples/js/postprocessing/EffectComposer.js");
@@ -51417,6 +51481,9 @@ var _stats2 = _interopRequireDefault(_stats);
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
+
+window.THREE = THREE;
+
 
 var stats = new _stats2.default();
 
@@ -51450,12 +51517,22 @@ this.pulsePeriod = 0;
 outlinePass.visibleEdgeColor = new THREE.Vector4(0, 0, 0, 1);
 outlinePass.hiddenEdgeColor = new THREE.Vector4(0, 0, 0, 0);
 composer.addPass(outlinePass);
+var pixelPass = new THREE.ShaderPass(THREE.PixelShader);
+pixelPass.uniforms.resolution.value = new THREE.Vector2(window.innerWidth, window.innerHeight);
+pixelPass.uniforms.resolution.value.multiplyScalar(window.devicePixelRatio);
+pixelPass.uniforms.pixelSize.value = 6;
+composer.addPass(pixelPass);
 var effectFXAA = new THREE.ShaderPass(THREE.FXAAShader);
 effectFXAA.uniforms['resolution'].value.set(1 / window.innerWidth, 1 / window.innerHeight);
 effectFXAA.renderToScreen = true;
 composer.addPass(effectFXAA);
 
-scene.add(new THREE.Mesh(new THREE.BoxBufferGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x11FF33 })));
+scene.add(new THREE.Mesh(new THREE.SphereBufferGeometry(1, 10, 10), new THREE.MeshToonMaterial({
+    color: 0x026655,
+    specular: 0x000000,
+    reflectivity: 0,
+    shininess: 0
+})));
 scene.children[0].position.set(0, 0, -5);
 outlinePass.selectedObjects = [scene.children[0]];
 var ms = new THREE.Mesh(new THREE.BoxBufferGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xFF0000 }));
@@ -51468,10 +51545,10 @@ cam.position.set(0, 0, 0);
 controls.update();
 
 // ambient light
-var am_light = new THREE.AmbientLight(0xBBBBBB);
+var am_light = new THREE.AmbientLight(0x222222);
 scene.add(am_light);
 // directional light
-var dir_light = new THREE.DirectionalLight(0xFFFFFF);
+var dir_light = new THREE.DirectionalLight(0x222222);
 dir_light.position.set(20, 30, -5);
 dir_light.target.position.set(0, 0, 0);
 dir_light.castShadow = true;
@@ -51485,8 +51562,8 @@ dir_light.shadow.bias = -.001;
 dir_light.shadow.mapSize.width = dir_light.shadow.mapSize.height = 2048;
 scene.add(dir_light);
 
-var light = new THREE.PointLight(0xffffdd, 2, 2);
-light.position.set(0, 3, -2);
+var light = new THREE.PointLight(0xffffdd, 1, 0, 2);
+light.position.set(0, 3, -4);
 scene.add(light);
 
 var lastTime = Date.now();
