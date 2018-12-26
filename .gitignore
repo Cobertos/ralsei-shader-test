@@ -1,0 +1,9 @@
+#Ignore specific stuff
+*.lnk
+/build
+/vendor/highlight.js/*
+!/vendor/highlight.js/src
+
+#Ignore npm stuff
+/node_modules
+.knex-migrator

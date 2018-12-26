@@ -1,0 +1,40 @@
+{
+  "name": "ralsei-shader-test",
+  "author": {
+    "name": "Peter / Cobertos",
+    "email": "me@cobertos.com",
+    "url": "http://cobertos.com"
+  },
+  "private": "true",
+  "version": "1.0.0",
+  "description": "GoodGood",
+  "dependencies": {
+    "aggregation": "^1.2.2",
+    "axios": "^0.18.0",
+    "babel-runtime": "^6.18.0",
+    "jquery": "^3.1.1",
+    "jsdom": "^13.0.0",
+    "stats.js": "^0.17.0",
+    "three": "^0.96.0",
+    "xmldom": "^0.1.27",
+    "xmldom-qsa": "^1.0.3"
+  },
+  "devDependencies": {
+    "babel-core": "^6.18.2",
+    "babel-loader": "^7.1.4",
+    "babel-plugin-transform-runtime": "^6.15.0",
+    "babel-preset-env": "^1.7.0",
+    "browser-sync": "^2.26.0",
+    "gulp": "^4.0.0",
+    "gulp-clean-css": "^3.10.0",
+    "gulp-sass": "^4.0.1",
+    "html-loader": "^0.5.5",
+    "ifdef-loader": "^2.0.3",
+    "imports-loader": "^0.8.0",
+    "jit-grunt": "^0.10.0",
+    "raw-loader": "^0.5.1",
+    "webpack": "^4.3.0",
+    "webpack-messages": "^2.0.3",
+    "webpack-stream": "^5.1.1"
+  }
+}
